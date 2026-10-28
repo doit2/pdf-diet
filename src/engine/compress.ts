@@ -149,6 +149,19 @@ function rawLength(ref: Ref): number {
   return ref.readRawStream().getLength()
 }
 
+/** JPEG 헤더(SOF)에 적힌 색 수. 찾지 못하면 0 */
+export function jpegComponents(j: Uint8Array): number {
+  let i = 2
+  while (i + 9 < j.length) {
+    if (j[i] !== 0xff) return 0
+    const marker = j[i + 1]
+    const len = (j[i + 2] << 8) | j[i + 3]
+    if (marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc) return j[i + 9]
+    i += 2 + len
+  }
+  return 0
+}
+
 /** 이미지 하나를 다시 쓴다. 바꿨으면 true */
 function rewriteImage(doc: Doc, num: number, size: DisplaySize, level: QualityLevel): boolean {
   const ref = doc.newIndirect(num)
@@ -200,8 +213,21 @@ function rewriteImage(doc: Doc, num: number, size: DisplaySize, level: QualityLe
       pix.destroy()
       pix = small
     }
-    const jpeg = pix.asJPEG(level.quality, false).slice()
+    // ICC 회색 프로필 등 일부 색공간은 asJPEG가 색 수가 다른 JPEG(예: 회색 → 3색)를
+    // 만든다. 그러면 PDF에 적힌 색공간과 어긋나 이미지가 깨지므로, 헤더의 색 수를 확인하고
+    // 다르면 Device 색공간으로 바꿔 다시 만든다. 그래도 다르면 이 이미지는 원본 유지.
+    const comps = finalCs.getNumberOfComponents()
+    let jpeg = pix.asJPEG(level.quality, false).slice()
+    if (jpegComponents(jpeg) !== comps) {
+      const device = comps === 1 ? mupdf.ColorSpace.DeviceGray : comps === 4 ? mupdf.ColorSpace.DeviceCMYK : mupdf.ColorSpace.DeviceRGB
+      const plain = pix.convertToColorSpace(device, false)
+      pix.destroy()
+      pix = plain
+      jpeg = pix.asJPEG(level.quality, false).slice()
+      outName = comps === 1 ? 'DeviceGray' : comps === 4 ? 'DeviceCMYK' : 'DeviceRGB'
+    }
     pix.destroy()
+    if (jpegComponents(jpeg) !== comps) return false
 
     if (jpeg.length >= rawLength(ref) * MIN_GAIN) return false
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import * as mupdf from 'mupdf'
-import { compressAtLevel, compressToTarget, analyze, saveOptions, targetPixels } from './compress'
+import { compressAtLevel, compressToTarget, analyze, saveOptions, targetPixels, jpegComponents } from './compress'
 import { DEFAULT_OPTIONS, EngineError, LEVELS, type CompressOptions } from './types'
 import { makeTestPdf, pageText, renderDiff } from './testPdf'
 
@@ -27,6 +27,28 @@ function imageDicts(data: Uint8Array): string[] {
   }
   doc.destroy()
   return out
+}
+
+/** 결과 안 모든 JPEG 이미지가 PDF에 적힌 색 수와 같은 색 수로 저장됐는지 */
+function jpegMatchesColorSpace(data: Uint8Array): boolean {
+  const doc = open(data)
+  let ok = true
+  for (let i = 1; i < doc.countObjects(); i++) {
+    const ref = doc.newIndirect(i)
+    try {
+      if (!ref.isStream() || ref.get('Subtype').asName() !== 'Image' || ref.get('Filter').asName() !== 'DCTDecode') continue
+      const raw = ref.readRawStream()
+      const comps = jpegComponents(raw.asUint8Array().slice())
+      raw.destroy()
+      const img = doc.loadImage(ref)
+      if (comps !== img.getColorSpace()!.getNumberOfComponents()) ok = false
+      img.destroy()
+    } catch {
+      /* skip */
+    }
+  }
+  doc.destroy()
+  return ok
 }
 
 describe('targetPixels', () => {
@@ -106,11 +128,20 @@ describe('compressAtLevel', () => {
     expect(renderDiff(cmyk, out.data)).toBeLessThan(15)
   })
 
-  it('회색 이미지', () => {
+  it('회색(ICC) 이미지 — JPEG 색 수가 어긋나 깨지지 않는다', () => {
+    // 회귀: ICC 회색 이미지를 asJPEG하면 3색 JPEG가 나와 화면이 밀려 보였다 (T-05에서 발견)
     const gray = makeTestPdf({ kind: 'gray', dpi: 300 })
     const out = compressAtLevel(gray, 2, DEFAULT_OPTIONS, sizesOf(gray))
     expect(out.imagesRewritten).toBe(1)
-    expect(renderDiff(gray, out.data)).toBeLessThan(15)
+    expect(jpegMatchesColorSpace(out.data)).toBe(true)
+    expect(renderDiff(gray, out.data)).toBeLessThan(6)
+  })
+
+  it('모든 종류에서 JPEG 색 수 = PDF 색공간 색 수', () => {
+    for (const kind of ['photo', 'cmyk', 'smask', 'gray'] as const) {
+      const src = makeTestPdf({ kind, dpi: 300 })
+      expect(jpegMatchesColorSpace(compressAtLevel(src, 4, DEFAULT_OPTIONS, sizesOf(src)).data), kind).toBe(true)
+    }
   })
 
   it('투명 마스크(SMask)가 있는 이미지', () => {

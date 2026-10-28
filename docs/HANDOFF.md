@@ -2,8 +2,8 @@
 
 새 대화는 이 파일만 먼저 읽고 시작한다. 단계가 끝날 때마다 갱신한다.
 
-- 최종 갱신: 2026-10-28 (2단계 진행 중 — 엔진·메모리 대책 완료, T-05 남음)
-- 다음 할 일: **2단계 마무리(README 상태표 '완료', 배포 확인 — Vercel 커넥터 팀 접근 재승인 필요) → 3단계 화면**
+- 최종 갱신: 2026-10-29 (2단계 완료 — 운영 배포 확인)
+- 다음 할 일: **3단계 화면** (아래 '8. 3단계 시작 메모')
 
 ---
 
@@ -37,7 +37,7 @@ PDF를 **브라우저 안에서만** 압축하는 정적 웹앱. 이미지 해�
 
 연결 상태(다시 할 필요 없음): Claude GitHub 앱 설치됨(push 가능), Vercel ↔ GitHub 연결됨, Vercel 커넥터 연결됨, Claude 앱 내장 브라우저에 GitHub·Vercel 로그인됨.
 
-## 4. 현재 코드 (1단계 완료)
+## 4. 현재 코드 (2단계 완료)
 
 ```
 index.html              lang=ko, 제목 "PDF 다이어트 — PDF 용량 줄이기"
@@ -62,8 +62,8 @@ src/engine/measure.test.ts  T-05 단계표 측정 (DOC 환경변수 있을 때�
 
 | 단계 | 내용 | 예상 토큰 |
 | --- | --- | --- |
-| **2. 엔진** | Worker + MuPDF, 이미지 재압축, 옵션 5종, 목표 % 탐색 | 30만 |
-| 3. 화면 | 업로드 → 설정 → 처리 중(진행률·취소) → 결과 | 15만 |
+| 2. 엔진 (완료) | Worker + MuPDF, 이미지 재압축, 옵션 5종, 목표 % 탐색 | 30만 |
+| **3. 화면** | 업로드 → 설정 → 처리 중(진행률·취소) → 결과 | 15만 |
 | 4. 테스트 | 테스트 PDF 생성 스크립트, 엔진·화면 테스트(Playwright) | 20만 |
 | 5. 배포·안정화 | 수동 점검(T-13), 릴리스 v1.0.0 | 15만 |
 
@@ -141,6 +141,17 @@ src/engine/measure.test.ts  T-05 단계표 측정 (DOC 환경변수 있을 때�
 
 - 커밋: 한국어 메시지, 작성자 `doit2 <joybuilder@gmail.com>`, 끝에 Co-Authored-By / Claude-Session 줄.
 - push 전 `npm run typecheck && npm test && npm run build` 통과 확인.
-- 배포 확인은 Vercel 커넥터 `list_deployments`(projectId `pdf-diet`)로 상태 READY 확인.
+- 배포 확인은 Vercel 커넥터 `list_deployments`(projectId `pdf-diet`, slug `k4-6b88`)로 READY 확인.
+  커넥터가 403(팀 접근 만료)이면 `authorize_team_access`(teamId `team_RxwKOBgTofukr4wbK5sP4pvA`) 링크를 사용자에게 주거나,
+  `gh api repos/doit2/pdf-diet/commits/<sha>/statuses`로 Vercel 상태(success)를 확인해도 된다.
 - 단계가 끝나면 이 파일과 README의 상태표를 갱신한다.
 - 사용량 절약: 한 대화에 한 단계, 로그는 실패 부분만, 큰 PDF는 대화에 올리지 않음.
+
+## 8. 3단계 시작 메모 (화면)
+
+- 진입점: `src/App.tsx`의 "준비 중" 화면을 교체. 문구는 모두 `src/strings.ts`.
+- 엔진 호출: `startCompress(file, %, opts, onProgress)` → `{promise, cancel}` (`src/engine/client.ts`). 취소는 `cancel()`.
+- 흐름: 업로드(드래그·선택, PDF 1개, 100MB 상한) → 설정(목표 %, 옵션 5종, 메타데이터 제거 기본 끔) → 처리 중(진행률·취소) → 결과(전/후 크기, 다운로드, 다시 하기).
+- 결과에서 `targetMet=false`면 "글자가 읽히는 범위에서 이 이상 줄이기 어렵습니다 — 결과 n% 감소" 안내.
+- 오류는 `EngineError` 코드별 문구(암호 PDF, 손상 파일 등)를 strings.ts에 둔다.
+- 끝나면 헤드리스 크로미움 + 운영 CSP로 한 번 확인 후 push, 이 파일·README 상태표 갱신.

@@ -30,7 +30,7 @@ export interface QualityLevel {
 
 /**
  * 품질 단계표. 0번은 "이미지 그대로, 구조만 정리".
- * 1~6번은 숫자가 클수록 강하게 줄인다. (T-05 측정으로 확정)
+ * 1~6번은 숫자가 클수록 강하게 줄인다. (T-05 측정, 2026-10-28 확정)
  */
 export const LEVELS: readonly (QualityLevel | null)[] = [
   null,
@@ -38,8 +38,9 @@ export const LEVELS: readonly (QualityLevel | null)[] = [
   { dpi: 150, quality: 75 },
   { dpi: 120, quality: 65 },
   { dpi: 96, quality: 55 },
-  { dpi: 72, quality: 45 },
-  { dpi: 60, quality: 35 },
+  // 5·6은 9pt 스캔 글자가 읽히는 하한으로 올림 (T-05: 72DPI는 숫자 혼동, 60DPI는 판독 불가)
+  { dpi: 88, quality: 50 },
+  { dpi: 80, quality: 45 },
 ]
 
 export const MAX_INPUT_BYTES = 100 * 1024 * 1024

@@ -149,8 +149,8 @@ describe('compressAtLevel', () => {
 describe('compressToTarget', () => {
   const photo = makeTestPdf({ dpi: 300, pages: 2 })
 
-  it('목표를 만족하는 가장 약한 단계를 고른다', () => {
-    const r = compressToTarget(photo, 50, DEFAULT_OPTIONS)
+  it('목표를 만족하는 가장 약한 단계를 고른다', async () => {
+    const r = await compressToTarget(photo, 50, DEFAULT_OPTIONS)
     expect(r.targetMet).toBe(true)
     expect(r.size).toBeLessThanOrEqual(photo.length * 0.5)
     expect(r.level).not.toBeNull()
@@ -161,45 +161,39 @@ describe('compressToTarget', () => {
     }
   })
 
-  it('목표를 못 채우면 가장 작은 결과를 주고 targetMet=false', () => {
+  it('목표를 못 채우면 가장 작은 결과를 주고 targetMet=false', async () => {
     // 1비트 흑백 이미지는 다시 쓰지 않으므로 90%는 불가능
     const bw = makeTestPdf({ kind: 'bilevel', dpi: 300 })
-    const r = compressToTarget(bw, 90, DEFAULT_OPTIONS)
+    const r = await compressToTarget(bw, 90, DEFAULT_OPTIONS)
     expect(r.targetMet).toBe(false)
     expect(r.size).toBeLessThanOrEqual(bw.length)
     const strongest = compressAtLevel(bw, LEVELS.length - 1, DEFAULT_OPTIONS, sizesOf(bw))
     expect(r.size).toBeLessThanOrEqual(strongest.data.length)
   })
 
-  it('줄일 것이 없으면 원본을 그대로 돌려준다', () => {
+  it('줄일 것이 없으면 원본을 그대로 돌려준다', async () => {
     const tiny = compressAtLevel(makeTestPdf({ dpi: 20 }), 0, DEFAULT_OPTIONS, new Map()).data
-    const r = compressToTarget(tiny, 30, DEFAULT_OPTIONS)
+    const r = await compressToTarget(tiny, 30, DEFAULT_OPTIONS)
     expect(r.size).toBeLessThanOrEqual(tiny.length)
     if (r.usedOriginal) expect(r.data).toEqual(tiny)
   })
 
-  it('진행률을 알린다', () => {
+  it('진행률을 알린다', async () => {
     const phases = new Set<string>()
-    compressToTarget(photo, 50, DEFAULT_OPTIONS, (p) => phases.add(p.phase))
+    await compressToTarget(photo, 50, DEFAULT_OPTIONS, (p) => phases.add(p.phase))
     expect([...phases]).toEqual(expect.arrayContaining(['open', 'analyze', 'images', 'save']))
   })
 
-  it('PDF가 아니면 invalid-pdf', () => {
-    expect(() => compressToTarget(new TextEncoder().encode('hello'), 50, DEFAULT_OPTIONS)).toThrow(EngineError)
-    try {
-      compressToTarget(new TextEncoder().encode('hello'), 50, DEFAULT_OPTIONS)
-    } catch (e) {
-      expect((e as EngineError).code).toBe('invalid-pdf')
-    }
+  it('PDF가 아니면 invalid-pdf', async () => {
+    await expect(compressToTarget(new TextEncoder().encode('hello'), 50, DEFAULT_OPTIONS)).rejects.toMatchObject({
+      name: 'EngineError',
+      code: 'invalid-pdf',
+    })
   })
 
-  it('암호 걸린 PDF는 encrypted', () => {
+  it('암호 걸린 PDF는 encrypted', async () => {
     const enc = makeTestPdf({ dpi: 50, encryptPassword: 'secret' })
-    try {
-      compressToTarget(enc, 50, DEFAULT_OPTIONS)
-      expect.unreachable()
-    } catch (e) {
-      expect((e as EngineError).code).toBe('encrypted')
-    }
+    await expect(compressToTarget(enc, 50, DEFAULT_OPTIONS)).rejects.toBeInstanceOf(EngineError)
+    await expect(compressToTarget(enc, 50, DEFAULT_OPTIONS)).rejects.toMatchObject({ code: 'encrypted' })
   })
 })

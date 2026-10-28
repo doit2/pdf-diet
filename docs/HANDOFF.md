@@ -2,8 +2,8 @@
 
 새 대화는 이 파일만 먼저 읽고 시작한다. 단계가 끝날 때마다 갱신한다.
 
-- 최종 갱신: 2026-10-28 (2단계 진행 중 — 엔진 동작, 메모리 누수·T-05 남음)
-- 다음 할 일: **T-02b 메모리 누수 해결 방식 결정(아래 6-1) → T-05 측정**
+- 최종 갱신: 2026-10-28 (2단계 진행 중 — 엔진·메모리 대책 완료, T-05 남음)
+- 다음 할 일: **T-05 단계표 측정** (측정 스크립트는 아래 6-1 참고)
 
 ---
 
@@ -48,10 +48,11 @@ src/strings.ts          화면 문구
 src/lib/format.ts       formatBytes (+ format.test.ts, Vitest 5개 통과)
 src/engine/types.ts     옵션·단계표(LEVELS 0~6)·결과·오류 코드(EngineError)
 src/engine/compress.ts  순수 로직: analyze(표시 크기 측정) / compressAtLevel / compressToTarget(이진 탐색)
-src/engine/worker.ts    Comlink 노출. mupdf는 동적 import (아래 함정 참고)
-src/engine/client.ts    startCompress(file, %, opts, onProgress) → {promise, cancel}. 작업마다 Worker 새로 생성
+src/engine/search.ts    목표 % 이진 탐색(searchLevels). 최종 후보 결과만 들고 있음
+src/engine/worker.ts    Comlink 노출(analyze / compressLevel 각 1회). mupdf는 동적 import
+src/engine/client.ts    startCompress(file, %, opts, onProgress) → {promise, cancel}. 분석·단계 시도마다 새 Worker
 src/engine/testPdf.ts   테스트용 PDF 생성기(사진/회색/CMYK/SMask/1비트/중복/메타데이터/썸네일/암호)
-src/engine/compress.test.ts  엔진 테스트 22개 (전체 27개 통과)
+src/engine/compress.test.ts, search.test.ts  엔진 테스트 26개 (전체 31개 통과)
 ```
 
 버전: Node 22 / Vite 8.3 / React 19.3 / TypeScript 7.0 / Tailwind 4.3 / Vitest 5.0. 앱 버전 0.1.0.
@@ -82,14 +83,17 @@ src/engine/compress.test.ts  엔진 테스트 22개 (전체 27개 통과)
 - Worker에서 mupdf를 정적 import하면 WASM 로딩(top-level await) 중 온 요청이 버려짐 → 동적 import.
 - 저장 옵션에 object-streams 없음(이 빌드). WASM 10.4MB(gzip 4.8MB), Worker 생성 때만 받음.
 
-**남은 문제 — T-02b 메모리 누수 (결정 필요)**
-- 같은 Worker 안에서 압축을 반복하면 WASM 메모리가 계속 늘어남(사진 2쪽 PDF 기준 시도 1회당 약 100MB, 상한 2GB).
-  `toPixmap` 경로에서 발생, `mupdf.emptyStore()`·GC로도 안 줄어듦. 분석(analyze) 쪽 누수는 콜백 이미지 즉시 해제로 해결함.
-- 해결안(택1, 사용자 결정):
-  - A. **단계 시도마다 새 Worker** — client가 이진 탐색을 돌리고 Worker는 단계 1회만 처리. 확실하지만 시도마다 WASM 재초기화(약 0.3~1초) 추가.
-  - B. 원인 추적 후 엔진 안에서 해결 — 시간·토큰이 더 들고 확실하지 않음.
-  - (권장 A, 필요하면 나중에 B)
-- 함께 할 일: 탐색 중 버려질 결과물 데이터는 들고 있지 않기(100MB 파일 대비).
+**T-02b 메모리 누수 — 해결 (사용자 결정: A안)**
+- 원인: 같은 WASM 인스턴스에서 압축을 반복하면 `toPixmap` 경로 메모리가 시도마다 약 100MB씩 쌓임(상한 2GB). `emptyStore()`·GC로도 안 줄어듦.
+- 대책: client.ts가 이진 탐색을 돌리고 **분석 1회 + 단계 시도마다 새 Worker**를 만들어 끝나면 terminate. 시도당 WASM 재초기화 비용은 작음(9.3MB 사진 PDF 전체 1.7초, Worker 4개).
+- 분석 쪽 누수(장치 콜백 이미지 래퍼)는 즉시 destroy로 해결.
+- 브라우저 확인(운영 CSP): 결과 정상, 끝나면 Worker 0개, 취소 시 진행 중 Worker 종료·이후 시도 없음.
+
+**T-05 측정 방법(다음 작업)**
+- 커밋 0ac8e6c 이전 대화에서 쓴 방식: vitest 임시 파일(`src/engine/zz_*.test.ts`, 커밋 안 함)에서
+  스캔형(텍스트 페이지를 300DPI 회색/컬러 이미지로 렌더+잡음)·사진·혼합 PDF를 만들고 단계 0~6마다 크기·PSNR(150DPI 렌더)·시간 측정,
+  스캔 글자 부분 144DPI 확대 PNG를 눈으로 확인.
+- 측정 코드에서 렌더한 Pixmap·Document는 반드시 destroy (안 하면 2GB 한도에 걸림). Node에서도 단계마다 메모리가 쌓이므로 문서 4종×7단계를 한 번에 돌리지 말고 문서별로 나눠 실행.
 
 ## 6. 2단계 작업 순서
 

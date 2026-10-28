@@ -9,6 +9,9 @@ import {
   type Progress,
   type QualityLevel,
 } from './types'
+import { searchLevels, type LevelOutput } from './search'
+
+export type { LevelOutput }
 
 /** 이미지가 페이지에 실제로 그려지는 최대 크기 (pt, 1pt = 1/72인치) */
 export interface DisplaySize {
@@ -242,12 +245,6 @@ export function saveOptions(opts: CompressOptions): string {
   return parts.join(',')
 }
 
-export interface LevelOutput {
-  data: Uint8Array
-  imagesRewritten: number
-  imagesTotal: number
-}
-
 /** 원본을 새로 열어 한 단계로 압축한 결과를 만든다 */
 export function compressAtLevel(
   input: Uint8Array,
@@ -284,90 +281,36 @@ export function compressAtLevel(
   }
 }
 
+/** 원본을 열어 이미지별 표시 크기를 잰다 (Worker 1회 작업) */
+export function analyzePdf(input: Uint8Array, onProgress?: (done: number, total: number) => void): Map<number, DisplaySize> {
+  const doc = openPdf(input)
+  try {
+    return analyze(doc, onProgress)
+  } finally {
+    doc.destroy()
+  }
+}
+
 /**
- * 목표 감소율(%)을 만족하는 "가장 약한" 품질 단계를 이진 탐색으로 고른다.
- * - 단계 0(구조만 정리)부터 6까지. 단계가 클수록 결과가 작다고 가정한다.
- * - 어느 단계로도 목표에 못 미치면 가장 작은 결과를 돌려준다(targetMet=false).
- * - 결과가 원본 이상이면 원본을 그대로 돌려준다(usedOriginal=true).
+ * 한 WASM 인스턴스 안에서 탐색까지 모두 하는 버전 (Node 테스트·측정용).
+ * 브라우저에서는 client.ts가 시도마다 새 Worker로 같은 탐색을 돌린다.
  */
-export function compressToTarget(
+export async function compressToTarget(
   input: Uint8Array,
   targetPercent: number,
   opts: CompressOptions,
   onProgress?: (p: Progress) => void,
-): CompressResult {
-  const originalSize = input.length
-  const goal = originalSize * (1 - Math.min(Math.max(targetPercent, 0), 99) / 100)
-
+): Promise<CompressResult> {
   onProgress?.({ phase: 'open', level: 0, attempt: 0, done: 0, total: 1 })
-  const first = openPdf(input)
-  let sizes: Map<number, DisplaySize>
-  try {
-    sizes = analyze(first, (done, total) => onProgress?.({ phase: 'analyze', level: 0, attempt: 0, done, total }))
-  } finally {
-    first.destroy()
-  }
-
-  const cache = new Map<number, LevelOutput>()
-  let attempt = 0
-  const run = (lv: number): LevelOutput => {
-    const hit = cache.get(lv)
-    if (hit) return hit
-    attempt++
-    const out = compressAtLevel(
+  const sizes = analyzePdf(input, (done, total) => onProgress?.({ phase: 'analyze', level: 0, attempt: 0, done, total }))
+  return searchLevels(input, targetPercent, (lv, attempt) =>
+    compressAtLevel(
       input,
       lv,
       opts,
       sizes,
       (done, total) => onProgress?.({ phase: 'images', level: lv, attempt, done, total }),
       () => onProgress?.({ phase: 'save', level: lv, attempt, done: 0, total: 1 }),
-    )
-    cache.set(lv, out)
-    return out
-  }
-
-  let lo = 0
-  let hi = LEVELS.length - 1
-  let found: number | null = null
-  while (lo <= hi) {
-    const mid = (lo + hi) >> 1
-    if (run(mid).data.length <= goal) {
-      found = mid
-      hi = mid - 1
-    } else {
-      lo = mid + 1
-    }
-  }
-
-  let level: number
-  if (found !== null) {
-    level = found
-  } else {
-    run(LEVELS.length - 1)
-    level = [...cache.entries()].reduce((a, b) => (b[1].data.length < a[1].data.length ? b : a))[0]
-  }
-  const best = cache.get(level)!
-
-  if (best.data.length >= originalSize) {
-    return {
-      data: input.slice(),
-      originalSize,
-      size: originalSize,
-      level: null,
-      targetMet: originalSize <= goal,
-      usedOriginal: true,
-      imagesRewritten: 0,
-      imagesTotal: best.imagesTotal,
-    }
-  }
-  return {
-    data: best.data,
-    originalSize,
-    size: best.data.length,
-    level,
-    targetMet: best.data.length <= goal,
-    usedOriginal: false,
-    imagesRewritten: best.imagesRewritten,
-    imagesTotal: best.imagesTotal,
-  }
+    ),
+  )
 }

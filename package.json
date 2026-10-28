@@ -1,7 +1,7 @@
 {
   "name": "pdf-diet",
   "private": true,
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "브라우저에서 PDF 용량을 줄이는 웹앱 (파일은 서버로 전송되지 않음)",
   "license": "AGPL-3.0-only",
   "type": "module",
@@ -13,7 +13,9 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "typecheck": "tsc -b --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "fixtures": "tsx tests/fixtures/make.ts",
+    "test:e2e": "npm run build && playwright test"
   },
   "dependencies": {
     "comlink": "^4.4.2",
@@ -22,12 +24,14 @@
     "react-dom": "^19.3.1"
   },
   "devDependencies": {
+    "@playwright/test": "^1.64.1",
     "@tailwindcss/vite": "^4.3.3",
     "@types/node": "^26.6.5",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^6.1.2",
     "tailwindcss": "^4.3.3",
+    "tsx": "^4.23.15",
     "typescript": "^7.0.2",
     "vite": "^8.3.5",
     "vitest": "^5.0.5"

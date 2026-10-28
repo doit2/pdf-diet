@@ -1,7 +1,7 @@
 // 테스트·측정용 PDF 생성기 (앱 번들에는 들어가지 않음). Node와 브라우저 모두에서 동작.
 import * as mupdf from 'mupdf'
 
-export type ImageKind = 'photo' | 'bilevel' | 'cmyk' | 'smask' | 'gray'
+export type ImageKind = 'photo' | 'bilevel' | 'cmyk' | 'smask' | 'gray' | 'none'
 
 export interface TestPdfSpec {
   pages?: number
@@ -12,6 +12,12 @@ export interface TestPdfSpec {
   heightIn?: number
   kind?: ImageKind
   text?: string
+  /** 본문 글자 줄 수 (글자 보존 확인용, 줄마다 다른 내용) */
+  lines?: number
+  /** 선으로 그린 표(벡터) + 칸마다 글자 */
+  table?: boolean
+  /** 모든 페이지에 같은 그림을 별도 객체로 넣는다 (로고 반복) */
+  sameImage?: boolean
   metadata?: boolean
   thumbnail?: boolean
   /** 같은 이미지를 두 번 넣어(별도 객체) 중복 제거 효과를 본다 */
@@ -73,6 +79,28 @@ function addBilevelImage(doc: mupdf.PDFDocument, w: number, h: number): mupdf.PD
   })
 }
 
+const WORDS = 'alpha beta gamma delta epsilon zeta theta kappa lambda sigma omega quarterly revenue invoice total'.split(' ')
+
+/** 페이지·줄마다 다른 본문 한 줄 (괄호·역슬래시 없음) */
+function bodyLine(page: number, line: number): string {
+  const r = rng(page * 1000 + line + 1)
+  const words = Array.from({ length: 9 }, () => WORDS[Math.floor(r() * WORDS.length)])
+  return `${page + 1}.${line + 1} ${words.join(' ')} ${Math.floor(r() * 100000)}`
+}
+
+/** 4행 3열 표: 선(벡터) + 칸 글자. 이미지 영역(y 300~) 아래쪽에 그린다 */
+function tableContent(page: number): string {
+  const x0 = 36, y0 = 60, cw = 120, rh = 18, rows = 4, cols = 3
+  let s = '0.5 w '
+  for (let r = 0; r <= rows; r++) s += `${x0} ${y0 + r * rh} m ${x0 + cols * cw} ${y0 + r * rh} l S `
+  for (let c = 0; c <= cols; c++) s += `${x0 + c * cw} ${y0} m ${x0 + c * cw} ${y0 + rows * rh} l S `
+  s += '\n'
+  for (let r = 0; r < rows; r++)
+    for (let c = 0; c < cols; c++)
+      s += `BT /F1 9 Tf ${x0 + c * cw + 4} ${y0 + (rows - 1 - r) * rh + 5} Td (R${r + 1}C${c + 1} p${page + 1} ${(r + 1) * (c + 7) * 13}) Tj ET\n`
+  return s
+}
+
 export function makeTestPdf(spec: TestPdfSpec = {}): Uint8Array {
   const { pages = 1, dpi = 300, widthIn = 4, heightIn = 3, kind = 'photo', text = 'PDF diet test page' } = spec
   const w = Math.round(widthIn * dpi)
@@ -80,12 +108,24 @@ export function makeTestPdf(spec: TestPdfSpec = {}): Uint8Array {
   const doc = new mupdf.PDFDocument()
   const font = doc.addSimpleFont(new mupdf.Font('Helvetica'))
 
+  let first: mupdf.PDFObject | null = null
   for (let p = 0; p < pages; p++) {
-    let img: mupdf.PDFObject
-    if (kind === 'bilevel') {
+    const xobjects: Record<string, mupdf.PDFObject> = {}
+    const pw = widthIn * 72
+    const ph = heightIn * 72
+    let content = ''
+    let img: mupdf.PDFObject | null = null
+    if (kind === 'none') {
+      // 이미지 없음
+    } else if (spec.sameImage && first) {
+      // addImage는 같은 이미지를 합치므로 원시 스트림을 복사해 별도 객체로 만든다
+      const dict = doc.newDictionary()
+      first.resolve().forEach((v, k) => dict.put(k, v))
+      img = doc.addRawStream(first.readRawStream(), dict)
+    } else if (kind === 'bilevel') {
       img = addBilevelImage(doc, w, h)
     } else {
-      const pix = makePixmap(kind, w, h, p + 1)
+      const pix = makePixmap(kind, w, h, spec.sameImage ? 1 : p + 1)
       if (kind === 'smask') {
         const mask = makePixmap('gray', w, h, 99)
         img = doc.addImage(new mupdf.Image(pix, new mupdf.Image(mask)))
@@ -93,11 +133,12 @@ export function makeTestPdf(spec: TestPdfSpec = {}): Uint8Array {
         img = doc.addImage(new mupdf.Image(pix))
       }
     }
-    const xobjects: Record<string, mupdf.PDFObject> = { Im0: img }
-    const pw = widthIn * 72
-    const ph = heightIn * 72
-    let content = `q ${pw} 0 0 ${ph} 36 300 cm /Im0 Do Q\n`
-    if (spec.duplicate && kind !== 'bilevel') {
+    if (img) {
+      first ??= img
+      xobjects.Im0 = img
+      content += `q ${pw} 0 0 ${ph} 36 300 cm /Im0 Do Q\n`
+    }
+    if (img && spec.duplicate && kind !== 'bilevel') {
       // addImage는 같은 이미지를 알아서 합치므로, 원시 스트림을 복사해 별도 객체를 만든다
       const dict = doc.newDictionary()
       img.resolve().forEach((v, k) => dict.put(k, v))
@@ -105,6 +146,12 @@ export function makeTestPdf(spec: TestPdfSpec = {}): Uint8Array {
       content += `q ${pw / 2} 0 0 ${ph / 2} 36 60 cm /Im1 Do Q\n`
     }
     content += `BT /F1 14 Tf 36 800 Td (${text} ${p + 1}) Tj ET\n`
+    for (let i = 0; i < (spec.lines ?? 0); i++) {
+      const y = 780 - i * 12
+      if (y < 40) break
+      content += `BT /F1 9 Tf 36 ${y} Td (${bodyLine(p, i)}) Tj ET\n`
+    }
+    if (spec.table) content += tableContent(p)
     const page = doc.addPage([0, 0, 612, 842], 0, { XObject: xobjects, Font: { F1: font } }, content)
     if (spec.thumbnail) {
       const thumb = doc.addImage(new mupdf.Image(makePixmap('photo', 106, 146, 7)))

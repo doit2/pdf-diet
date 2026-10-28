@@ -2,8 +2,8 @@
 
 새 대화는 이 파일만 먼저 읽고 시작한다. 단계가 끝날 때마다 갱신한다.
 
-- 최종 갱신: 2026-10-29 (3단계 화면 완료 — 운영 배포 확인)
-- 다음 할 일: **4단계 테스트** (아래 '9. 4단계 시작 메모')
+- 최종 갱신: 2026-10-29 (4단계 테스트 완료)
+- 다음 할 일: **5단계 배포·안정화** (아래 '10. 5단계 시작 메모')
 
 ---
 
@@ -37,7 +37,7 @@ PDF를 **브라우저 안에서만** 압축하는 정적 웹앱. 이미지 해�
 
 연결 상태(다시 할 필요 없음): Claude GitHub 앱 설치됨(push 가능), Vercel ↔ GitHub 연결됨, Vercel 커넥터 연결됨, Claude 앱 내장 브라우저에 GitHub·Vercel 로그인됨.
 
-## 4. 현재 코드 (3단계 완료)
+## 4. 현재 코드 (4단계 완료)
 
 ```
 index.html              lang=ko, 제목 "PDF 다이어트 — PDF 용량 줄이기"
@@ -57,9 +57,17 @@ src/engine/client.ts    startCompress(file, %, opts, onProgress) → {promise, c
 src/engine/testPdf.ts   테스트용 PDF 생성기(사진/회색/CMYK/SMask/1비트/중복/메타데이터/썸네일/암호)
 src/engine/compress.test.ts, search.test.ts  엔진 테스트 28개 (전체 43개 통과)
 src/engine/measure.test.ts  T-05 단계표 측정 (DOC 환경변수 있을 때만 실행)
+tests/fixtures/fixtures.ts  기획서 7.1 묶음 생성 함수(FIXTURES) + makeBig(95MB)
+tests/fixtures/make.ts      묶음을 tests/fixtures/out/에 씀 (git 제외). `npm run fixtures [-- big]`
+tests/engine/fixtures.test.ts  묶음으로 엔진 확인 21개: T-04 옵션 단독, T-06 글자 보존(단계 0~6), T-07, photo-heavy 50·75%, scan-like, 암호, 손상
+tests/e2e/server.mjs        dist/ + vercel.json 헤더 그대로 붙이는 정적 서버 (GET/HEAD만 받음)
+tests/e2e/global-setup.ts   묶음 생성 (BIG=1이면 95MB도)
+tests/e2e/app.spec.ts       Playwright 14개: T-08~T-12, 360px 폭
+playwright.config.ts        chromium 기본, E2E_ALL=1이면 firefox·webkit(T-08만), PW_CHROMIUM_PATH로 브라우저 지정
 ```
 
-버전: Node 22 / Vite 8.3 / React 19.3 / TypeScript 7.0 / Tailwind 4.3 / Vitest 5.0. 앱 버전 0.2.0.
+버전: Node 22 / Vite 8.3 / React 19.3 / TypeScript 7.0 / Tailwind 4.3 / Vitest 5.0 / Playwright 1.64. 앱 버전 0.3.0.
+테스트: Vitest 64개 통과(+측정 1개 건너뜀), Playwright Chromium 13개 통과(+T-12는 BIG=1일 때).
 
 ## 5. 남은 단계
 
@@ -67,8 +75,8 @@ src/engine/measure.test.ts  T-05 단계표 측정 (DOC 환경변수 있을 때�
 | --- | --- | --- |
 | 2. 엔진 (완료) | Worker + MuPDF, 이미지 재압축, 옵션 5종, 목표 % 탐색 | 30만 |
 | 3. 화면 (완료) | 업로드 → 설정 → 처리 중(진행률·취소) → 결과 | 15만 |
-| **4. 테스트** | 테스트 PDF 생성 스크립트, 엔진·화면 테스트(Playwright) | 20만 |
-| 5. 배포·안정화 | 수동 점검(T-13), 릴리스 v1.0.0 | 15만 |
+| 4. 테스트 (완료) | 테스트 PDF 생성 스크립트, 엔진·화면 테스트(Playwright) | 20만 |
+| **5. 배포·안정화** | 수동 점검(T-13), 릴리스 v1.0.0 | 15만 |
 
 ## 6-1. 2단계 진행 상황 (2026-10-28)
 
@@ -170,9 +178,31 @@ src/engine/measure.test.ts  T-05 단계표 측정 (DOC 환경변수 있을 때�
   손상 PDF에서 MuPDF가 콘솔에 경고(repair 등)를 찍는 것은 정상.
 - 확인용 스크립트는 저장소에 넣지 않았음 → 4단계에서 Playwright 테스트로 정식화.
 
-## 9. 4단계 시작 메모 (테스트)
+## 9. 4단계 시작 메모 (테스트) — 완료, 아래 9-1 참고
 
 - 테스트 PDF: `src/engine/testPdf.ts`의 `makeTestPdf`로 기획서 7.1 묶음 생성(`tests/fixtures/make.ts`). 큰 파일(95MB)은 커밋하지 말고 실행 때 생성.
 - Playwright: 정적 서버에 vercel.json 헤더를 그대로 붙여 운영 CSP로 돌릴 것(`vite preview`는 헤더를 안 붙임).
   셀렉터: `input[type=file]`, 버튼 이름(압축 시작/취소/다른 설정으로 다시/새 파일/다른 파일), `data-testid` = dropzone, target-hint, sizes, reduced, note.
 - 항목: T-04·T-06·T-07(엔진), T-08~T-11(화면·보안), T-12(95MB 성능). CI에 Playwright 추가(Chromium부터, Firefox·WebKit는 시간 보고 결정).
+
+## 9-1. 4단계 결과 (2026-10-29)
+
+- 테스트 PDF 묶음 9종을 스크립트로 생성(저작권 문제 없음). photo-heavy는 100MB 상한 안에 들도록 20장 × 3×2인치 300DPI(30MB).
+  `testPdf.ts`에 옵션 추가: `kind: 'none'`(글자만), `lines`(줄마다 다른 본문), `table`(벡터 표 + 칸 글자), `sameImage`(같은 그림을 쪽마다 별도 객체로).
+- **발견·수정한 버그 (T-10)**: 끝이 잘린 PDF는 복구로 열리지만 저장 옵션 `clean`에서 MuPDF가 "not a dict (null)"을 던져
+  날것의 오류가 화면까지 가서 **"메모리가 부족할 수 있으니…" 문구**가 나왔음. clean을 빼고 다시 저장하면 이번엔 "페이지 트리 순환"이 있는 깨진 PDF가 나옴.
+  → `compress.ts`: `saveRepairing()`(clean 빼고 재시도) + 복구로 연 파일은 결과를 다시 열어 모든 페이지를 불러 보는 `checkReopens()`. 실패하면 `invalid-pdf`("손상되었거나 올바르지 않은 PDF").
+  수정 전 코드로 T-10 손상 테스트가 실패하는 것 확인 후 수정.
+- 결과(Chromium, 운영 CSP): T-08 photo-heavy 50% 달성·파일명·%PDF- 확인, mixed 다운로드 파일 글자 = 원본. T-09 취소 후 Worker 0개.
+  T-10 비PDF·빈 파일·100MB 초과·암호·손상·글자만 안내. T-11 외부 요청 0건, GET 외 요청 0건. 360px 가로 넘침 없음.
+- **T-12 (95MB, 2코어·7GB 컨테이너의 헤드리스 Chromium 153)**: 96.5MB → 7.2MB(93% 감소), **14.6초**, 처리 중 최대 프레임 지연 38ms. 60초 기준 통과.
+- 정리된 확인 사항: 세 쪽이 같은 1비트 스캔 이미지는 중복 제거로 1개가 된다(정상).
+- CI: `e2e`(Chromium, T-08~T-11) + `e2e-browsers`(Firefox·WebKit에서 T-08). 실패하면 playwright-report를 아티팩트로 올림.
+- 작업 환경 메모: 이 대화 환경에서는 cdn.playwright.dev가 막혀 `npx playwright install`이 안 됨 →
+  npm `@sparticuz/chromium`의 크로미움을 `PW_CHROMIUM_PATH=/tmp/chromium`으로 지정해 실행했다. CI는 정상 설치.
+
+## 10. 5단계 시작 메모 (배포·안정화)
+
+- T-13 수동 점검: 실제 PC·Android·iPhone에서 운영 주소로 압축 → 결과 PDF를 Acrobat·브라우저로 열어 깨짐·글자 선택 확인. 실제 사진 PDF로 단계표(4~6) 화질 재확인.
+- 모바일 상한: T-12는 PC 기준. 모바일에서 50MB 이상이 되는지 확인하고, 안 되면 기기 메모리(`navigator.deviceMemory`) 기반 경고 문구 추가 검토.
+- 릴리스: package.json 1.0.0, Git 태그 v1.0.0, README 정리. Firefox·WebKit CI 결과 확인.

@@ -271,6 +271,41 @@ export function saveOptions(opts: CompressOptions): string {
   return parts.join(',')
 }
 
+/**
+ * 저장. 끝이 잘려 복구로 연 PDF는 `clean`(내용 스트림 다시 쓰기)에서 "not a dict" 오류가 날 수 있다(T-10, broken.pdf).
+ * 그때는 clean만 빼고 다시 저장하고, 그래도 안 되면 손상 파일로 알린다.
+ */
+function saveRepairing(doc: Doc, options: string): mupdf.Buffer {
+  try {
+    return doc.saveToBuffer(options)
+  } catch (e) {
+    const withoutClean = options.split(',').filter((o) => o !== 'clean').join(',')
+    if (withoutClean !== options) {
+      try {
+        return doc.saveToBuffer(withoutClean)
+      } catch {
+        /* 아래에서 처리 */
+      }
+    }
+    throw new EngineError('invalid-pdf', e instanceof Error ? e.message : String(e))
+  }
+}
+
+/** 결과가 다시 열리고 모든 페이지를 불러올 수 있는지. 아니면 손상 파일로 알린다 */
+function checkReopens(data: Uint8Array): void {
+  let doc: mupdf.Document | null = null
+  try {
+    doc = mupdf.Document.openDocument(data, 'application/pdf')
+    const n = doc.countPages()
+    if (n < 1) throw new Error('no pages')
+    for (let i = 0; i < n; i++) doc.loadPage(i).destroy()
+  } catch (e) {
+    throw new EngineError('invalid-pdf', `repaired output unreadable: ${e instanceof Error ? e.message : String(e)}`)
+  } finally {
+    doc?.destroy()
+  }
+}
+
 /** 원본을 새로 열어 한 단계로 압축한 결과를 만든다 */
 export function compressAtLevel(
   input: Uint8Array,
@@ -298,9 +333,11 @@ export function compressAtLevel(
     if (opts.removeMetadata) removeMetadata(doc)
     if (opts.removeThumbnails) removeThumbnails(doc)
     onSave?.()
-    const buf = doc.saveToBuffer(saveOptions(opts))
+    const buf = saveRepairing(doc, saveOptions(opts))
     const data = buf.asUint8Array().slice() // WASM 메모리를 가리키므로 복사해 둔다
     buf.destroy()
+    // 복구로 연 파일은 저장 결과가 다시 깨져 있을 수 있다(예: 페이지 트리 순환). 깨진 PDF를 건네지 않도록 확인한다.
+    if (doc.wasRepaired()) checkReopens(data)
     return { data, imagesRewritten: rewritten, imagesTotal: sizes.size }
   } finally {
     doc.destroy()

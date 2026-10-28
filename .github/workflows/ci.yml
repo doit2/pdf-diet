@@ -18,3 +18,44 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+
+  # 화면·보안 테스트 (T-08~T-11) — 운영 CSP를 붙인 정적 서버 + Chromium
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report-chromium
+          path: playwright-report/
+          retention-days: 7
+
+  # T-08을 Firefox·WebKit(Safari 엔진)에서도
+  e2e-browsers:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps firefox webkit
+      - run: npm run build
+      - run: npx playwright test --project=firefox --project=webkit
+        env:
+          E2E_ALL: '1'
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report-browsers
+          path: playwright-report/
+          retention-days: 7

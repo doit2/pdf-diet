@@ -33,7 +33,7 @@ PDF를 **브라우저 안에서만** 압축하는 정적 웹앱. 이미지 해�
 | Vercel 프로젝트 | `pdf-diet` / id `prj_3o9xlYS3drwbBwOIJsgLnubnctHd` / 팀 slug `k4-6b88` |
 | 자동 배포 | main push → 운영 배포, PR → 미리보기 주소 |
 | CI | GitHub Actions `.github/workflows/ci.yml`: typecheck → test → build |
-| 기획서 | Claude Docs "PDF 용량 줄이기 웹앱 기획서" https://claude.ai/artifact/14xmFP9miFdscjjpL1ULko |
+| 기획서 | [docs/PLAN.md](./PLAN.md) (사본) / 원본: Claude Docs "PDF 용량 줄이기 웹앱 기획서" https://claude.ai/artifact/14xmFP9miFdscjjpL1ULko |
 
 연결 상태(다시 할 필요 없음): Claude GitHub 앱 설치됨(push 가능), Vercel ↔ GitHub 연결됨, Vercel 커넥터 연결됨, Claude 앱 내장 브라우저에 GitHub·Vercel 로그인됨.
 

@@ -17,7 +17,7 @@
 
 ## 다음 작업자에게
 
-새 대화·새 작업자는 [docs/HANDOFF.md](./docs/HANDOFF.md)부터 읽으세요.
+새 대화·새 작업자는 [docs/HANDOFF.md](./docs/HANDOFF.md)부터 읽으세요. 전체 기획은 [docs/PLAN.md](./docs/PLAN.md)에 있습니다.
 
 ## 개발
 

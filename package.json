@@ -1,7 +1,7 @@
 {
   "name": "pdf-diet",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "브라우저에서 PDF 용량을 줄이는 웹앱 (파일은 서버로 전송되지 않음)",
   "license": "AGPL-3.0-only",
   "type": "module",

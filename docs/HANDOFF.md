@@ -2,8 +2,8 @@
 
 새 대화는 이 파일만 먼저 읽고 시작한다. 단계가 끝날 때마다 갱신한다.
 
-- 최종 갱신: 2026-10-29 (2단계 완료 — 운영 배포 확인)
-- 다음 할 일: **3단계 화면** (아래 '8. 3단계 시작 메모')
+- 최종 갱신: 2026-10-29 (3단계 화면 완료 — 운영 배포 확인)
+- 다음 할 일: **4단계 테스트** (아래 '9. 4단계 시작 메모')
 
 ---
 
@@ -37,34 +37,37 @@ PDF를 **브라우저 안에서만** 압축하는 정적 웹앱. 이미지 해�
 
 연결 상태(다시 할 필요 없음): Claude GitHub 앱 설치됨(push 가능), Vercel ↔ GitHub 연결됨, Vercel 커넥터 연결됨, Claude 앱 내장 브라우저에 GitHub·Vercel 로그인됨.
 
-## 4. 현재 코드 (2단계 완료)
+## 4. 현재 코드 (3단계 완료)
 
 ```
 index.html              lang=ko, 제목 "PDF 다이어트 — PDF 용량 줄이기"
 vite.config.ts          React + Tailwind v4, worker ES 형식, __APP_VERSION__ 주입
 vercel.json             CSP(connect-src 'self', wasm-unsafe-eval, worker blob:), assets 1년 캐시
-src/App.tsx             "준비 중" 임시 화면 + 하단 소스 링크·버전
-src/strings.ts          화면 문구
-src/lib/format.ts       formatBytes (+ format.test.ts, Vitest 5개 통과)
+src/App.tsx             화면 상태(upload→settings→working→done), 엔진 호출·취소·오류 처리, 하단 안내·소스 링크·버전
+src/components/         UploadView(드래그·선택) / SettingsView(목표 %·고급 옵션) / WorkingView(진행률·취소) / ResultView(전후 크기·다운로드) / FileCard
+src/strings.ts          화면 문구 전부 (오류 코드·파일 검사 문구 포함), outputName(원본이름_compressed.pdf)
+src/lib/format.ts       formatBytes (+ format.test.ts)
+src/lib/validate.ts     파일 검사(T-03: 형식·빈 파일·100MB, %PDF- 머리말), 목표 크기·감소율 계산 (+ validate.test.ts)
+src/lib/progress.ts     엔진 Progress → 0~1 (분석 10% + 시도 최대 4회로 나눔)
 src/engine/types.ts     옵션·단계표(LEVELS 0~6)·결과·오류 코드(EngineError)
 src/engine/compress.ts  순수 로직: analyze(표시 크기 측정) / compressAtLevel / compressToTarget(이진 탐색)
 src/engine/search.ts    목표 % 이진 탐색(searchLevels). 최종 후보 결과만 들고 있음
 src/engine/worker.ts    Comlink 노출(analyze / compressLevel 각 1회). mupdf는 동적 import
 src/engine/client.ts    startCompress(file, %, opts, onProgress) → {promise, cancel}. 분석·단계 시도마다 새 Worker
 src/engine/testPdf.ts   테스트용 PDF 생성기(사진/회색/CMYK/SMask/1비트/중복/메타데이터/썸네일/암호)
-src/engine/compress.test.ts, search.test.ts  엔진 테스트 28개 (전체 33개 통과)
+src/engine/compress.test.ts, search.test.ts  엔진 테스트 28개 (전체 43개 통과)
 src/engine/measure.test.ts  T-05 단계표 측정 (DOC 환경변수 있을 때만 실행)
 ```
 
-버전: Node 22 / Vite 8.3 / React 19.3 / TypeScript 7.0 / Tailwind 4.3 / Vitest 5.0. 앱 버전 0.1.0.
+버전: Node 22 / Vite 8.3 / React 19.3 / TypeScript 7.0 / Tailwind 4.3 / Vitest 5.0. 앱 버전 0.2.0.
 
 ## 5. 남은 단계
 
 | 단계 | 내용 | 예상 토큰 |
 | --- | --- | --- |
 | 2. 엔진 (완료) | Worker + MuPDF, 이미지 재압축, 옵션 5종, 목표 % 탐색 | 30만 |
-| **3. 화면** | 업로드 → 설정 → 처리 중(진행률·취소) → 결과 | 15만 |
-| 4. 테스트 | 테스트 PDF 생성 스크립트, 엔진·화면 테스트(Playwright) | 20만 |
+| 3. 화면 (완료) | 업로드 → 설정 → 처리 중(진행률·취소) → 결과 | 15만 |
+| **4. 테스트** | 테스트 PDF 생성 스크립트, 엔진·화면 테스트(Playwright) | 20만 |
 | 5. 배포·안정화 | 수동 점검(T-13), 릴리스 v1.0.0 | 15만 |
 
 ## 6-1. 2단계 진행 상황 (2026-10-28)
@@ -147,7 +150,7 @@ src/engine/measure.test.ts  T-05 단계표 측정 (DOC 환경변수 있을 때�
 - 단계가 끝나면 이 파일과 README의 상태표를 갱신한다.
 - 사용량 절약: 한 대화에 한 단계, 로그는 실패 부분만, 큰 PDF는 대화에 올리지 않음.
 
-## 8. 3단계 시작 메모 (화면)
+## 8. 3단계 시작 메모 (화면) — 완료, 아래 8-1 참고
 
 - 진입점: `src/App.tsx`의 "준비 중" 화면을 교체. 문구는 모두 `src/strings.ts`.
 - 엔진 호출: `startCompress(file, %, opts, onProgress)` → `{promise, cancel}` (`src/engine/client.ts`). 취소는 `cancel()`.
@@ -155,3 +158,21 @@ src/engine/measure.test.ts  T-05 단계표 측정 (DOC 환경변수 있을 때�
 - 결과에서 `targetMet=false`면 "글자가 읽히는 범위에서 이 이상 줄이기 어렵습니다 — 결과 n% 감소" 안내.
 - 오류는 `EngineError` 코드별 문구(암호 PDF, 손상 파일 등)를 strings.ts에 둔다.
 - 끝나면 헤드리스 크로미움 + 운영 CSP로 한 번 확인 후 push, 이 파일·README 상태표 갱신.
+
+## 8-1. 3단계 결과 (2026-10-29)
+
+- 화면 4단계 구현. 처리 중 탭 닫기 경고(beforeunload), 화면 밖에 파일을 떨어뜨려도 브라우저가 PDF를 열지 않게 막음.
+- 오류 처리: 암호·손상·용량 초과 → 처음 화면 + 안내 / 그 밖의 실패(메모리 부족 등) → 설정 화면 + 안내 / 취소 → 설정 화면 "취소했습니다".
+- 목표 미달(`targetMet=false`) 안내, 이미지가 없거나 하나도 못 줄였으면 "이미지가 적은 PDF" 문구 추가, `usedOriginal`이면 "이미 최적화된 파일" 안내.
+- 설정 화면에 페이지 수는 표시하지 않음(엔진을 미리 띄워야 해서). 페이지 수는 분석 진행에서 받아 결과 화면에 표시.
+- 확인(헤드리스 크로미움 1.63 + vercel.json CSP를 그대로 붙인 정적 서버): 비PDF 거부, 11.9MB 사진 PDF 50% → 321KB(1.5초)·다운로드 파일명/머리말 정상,
+  다시 압축(90%), 취소, 글자만 PDF(목표 미달 안내), 암호·손상 PDF 안내, 360px 폭 가로 넘침 없음, 외부 요청 0건.
+  손상 PDF에서 MuPDF가 콘솔에 경고(repair 등)를 찍는 것은 정상.
+- 확인용 스크립트는 저장소에 넣지 않았음 → 4단계에서 Playwright 테스트로 정식화.
+
+## 9. 4단계 시작 메모 (테스트)
+
+- 테스트 PDF: `src/engine/testPdf.ts`의 `makeTestPdf`로 기획서 7.1 묶음 생성(`tests/fixtures/make.ts`). 큰 파일(95MB)은 커밋하지 말고 실행 때 생성.
+- Playwright: 정적 서버에 vercel.json 헤더를 그대로 붙여 운영 CSP로 돌릴 것(`vite preview`는 헤더를 안 붙임).
+  셀렉터: `input[type=file]`, 버튼 이름(압축 시작/취소/다른 설정으로 다시/새 파일/다른 파일), `data-testid` = dropzone, target-hint, sizes, reduced, note.
+- 항목: T-04·T-06·T-07(엔진), T-08~T-11(화면·보안), T-12(95MB 성능). CI에 Playwright 추가(Chromium부터, Firefox·WebKit는 시간 보고 결정).

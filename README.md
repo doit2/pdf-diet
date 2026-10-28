@@ -10,7 +10,7 @@
 | 단계 | 내용 | 상태 |
 | --- | --- | --- |
 | 1. 골격 | Vite + React + TypeScript, Tailwind, CI, Vercel 자동 배포 | 완료 |
-| 2. 엔진 | MuPDF.js(WASM) + Web Worker, 이미지 재압축, 옵션 5종, 목표 % 탐색 | 예정 |
+| 2. 엔진 | MuPDF.js(WASM) + Web Worker, 이미지 재압축, 옵션 5종, 목표 % 탐색 | 진행 중 (메모리 누수·T-05 남음) |
 | 3. 화면 | 업로드·설정·진행·결과 4단계 화면 | 예정 |
 | 4. 테스트 | 테스트 PDF 생성, 단위·엔진·화면 테스트 | 예정 |
 | 5. 배포·안정화 | 운영 점검, 릴리스 | 예정 |
@@ -39,5 +39,6 @@ src/
   App.tsx        화면
   strings.ts     화면 문구 모음 (다국어 추가 시 이 파일 확장)
   lib/           계산·변환 로직 (단위 테스트 대상)
+  engine/        압축 엔진 (MuPDF.js WASM, Web Worker)
 vercel.json      보안 헤더(CSP: 외부 전송 차단), 정적 파일 캐시
 ```

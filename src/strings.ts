@@ -31,6 +31,7 @@ export const t = {
   } as const,
   start: '압축 시작',
   firstLoadNote: '처음 한 번은 압축 엔진(약 5MB)을 내려받습니다.',
+  memoryNote: '이 기기에서는 큰 파일을 처리하다 메모리가 부족해 멈출 수 있습니다. 실패하면 PC 브라우저에서 시도해 주세요.',
 
   // 3. 처리 중
   working: '압축하는 중…',

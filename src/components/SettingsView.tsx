@@ -2,6 +2,7 @@ import { t } from '../strings'
 import type { CompressOptions } from '../engine/types'
 import { formatBytes } from '../lib/format'
 import { targetBytes } from '../lib/validate'
+import { memoryRisk, readDeviceEnv } from '../lib/memory'
 import { FileCard } from './FileCard'
 
 const QUICK = [25, 50, 75]
@@ -91,6 +92,11 @@ export function SettingsView({ file, percent, onPercent, options, onOptions, onS
       </details>
 
       <div>
+        {memoryRisk(file.size, readDeviceEnv()) && (
+          <p role="note" data-testid="memory-note" className="mb-3 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            {t.memoryNote}
+          </p>
+        )}
         <button
           type="button"
           onClick={onStart}

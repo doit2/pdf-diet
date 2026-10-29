@@ -191,6 +191,22 @@ test.describe('화면 폭', () => {
   })
 })
 
+test.describe('모바일 메모리 안내', () => {
+  test('메모리 2GB 기기에서 30MB PDF는 안내, PC는 안내 없음', async ({ page, browser, baseURL }) => {
+    await open(page, 'photo-heavy.pdf')
+    await expect(page.getByTestId('target-hint')).toBeVisible()
+    await expect(page.getByTestId('memory-note')).toHaveCount(0)
+
+    const ctx = await browser.newContext({ baseURL })
+    await ctx.addInitScript(() => Object.defineProperty(navigator, 'deviceMemory', { get: () => 2 }))
+    const low = await ctx.newPage()
+    await open(low, 'photo-heavy.pdf')
+    await expect(low.getByTestId('memory-note')).toBeVisible()
+    await expect(low.getByRole('button', { name: '압축 시작' })).toBeEnabled()
+    await ctx.close()
+  })
+})
+
 test.describe('T-12 성능 (BIG=1일 때만)', () => {
   test.skip(!process.env.BIG, 'BIG=1로 실행하면 95MB 파일로 확인합니다')
   test.setTimeout(300_000)

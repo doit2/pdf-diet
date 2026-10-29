@@ -2,8 +2,8 @@
 
 새 대화는 이 파일만 먼저 읽고 시작한다. 단계가 끝날 때마다 갱신한다.
 
-- 최종 갱신: 2026-10-29 (4단계 테스트 완료)
-- 다음 할 일: **5단계 배포·안정화** (아래 '10. 5단계 시작 메모')
+- 최종 갱신: 2026-10-30 (5단계 배포·안정화 — 자동 부분 완료, 실제 기기 점검 대기)
+- 다음 할 일: 사용자가 [T13-CHECKLIST.md](./T13-CHECKLIST.md) 점검 → 통과하면 **v1.0.0 태그·GitHub 릴리스** (아래 '10-1')
 
 ---
 
@@ -66,7 +66,7 @@ tests/e2e/app.spec.ts       Playwright 14개: T-08~T-12, 360px 폭
 playwright.config.ts        chromium 기본, E2E_ALL=1이면 firefox·webkit(T-08만), PW_CHROMIUM_PATH로 브라우저 지정
 ```
 
-버전: Node 22 / Vite 8.3 / React 19.3 / TypeScript 7.0 / Tailwind 4.3 / Vitest 5.0 / Playwright 1.64. 앱 버전 0.3.0.
+버전: Node 22 / Vite 8.3 / React 19.3 / TypeScript 7.0 / Tailwind 4.3 / Vitest 5.0 / Playwright 1.64. 앱 버전 1.0.0(5단계에서 올림).
 테스트: Vitest 64개 통과(+측정 1개 건너뜀), Playwright Chromium 13개 통과(+T-12는 BIG=1일 때).
 
 ## 5. 남은 단계
@@ -76,7 +76,7 @@ playwright.config.ts        chromium 기본, E2E_ALL=1이면 firefox·webkit(T-0
 | 2. 엔진 (완료) | Worker + MuPDF, 이미지 재압축, 옵션 5종, 목표 % 탐색 | 30만 |
 | 3. 화면 (완료) | 업로드 → 설정 → 처리 중(진행률·취소) → 결과 | 15만 |
 | 4. 테스트 (완료) | 테스트 PDF 생성 스크립트, 엔진·화면 테스트(Playwright) | 20만 |
-| **5. 배포·안정화** | 수동 점검(T-13), 릴리스 v1.0.0 | 15만 |
+| **5. 배포·안정화 (진행 중)** | 운영 점검·모바일 안내·1.0.0 완료 / 남은 것: T-13 실제 기기 점검, 태그 | 15만 |
 
 ## 6-1. 2단계 진행 상황 (2026-10-28)
 
@@ -206,3 +206,21 @@ playwright.config.ts        chromium 기본, E2E_ALL=1이면 firefox·webkit(T-0
 - T-13 수동 점검: 실제 PC·Android·iPhone에서 운영 주소로 압축 → 결과 PDF를 Acrobat·브라우저로 열어 깨짐·글자 선택 확인. 실제 사진 PDF로 단계표(4~6) 화질 재확인.
 - 모바일 상한: T-12는 PC 기준. 모바일에서 50MB 이상이 되는지 확인하고, 안 되면 기기 메모리(`navigator.deviceMemory`) 기반 경고 문구 추가 검토.
 - 릴리스: package.json 1.0.0, Git 태그 v1.0.0, README 정리. Firefox·WebKit CI 결과 확인.
+
+## 10-1. 5단계 진행 (2026-10-30)
+
+완료
+- 운영 점검: 4단계 커밋(e9bb12a) 운영 배포 READY, CI 3종(build·e2e·e2e-browsers = Firefox·WebKit) 통과.
+  운영 응답 헤더에 CSP(`connect-src 'self'` 등)·HSTS·nosniff·no-referrer·Permissions-Policy 붙어 있음 (Vercel 커넥터 `web_fetch_vercel_url`로 확인 — 이 대화 환경의 셸은 vercel.app 접속이 막힘).
+- 모바일 메모리 안내: `src/lib/memory.ts` (+ memory.test.ts 4개). 막지 않고 설정 화면에 노란 안내(`data-testid=memory-note`)만.
+  기준: deviceMemory ≤2GB → 25MB 초과, ≤4GB → 50MB 초과, 그 이상인 휴대폰 → 80MB 초과, 메모리 값을 모르는 휴대폰(iPhone) → 50MB 초과. PC는 안내 없음.
+  휴대폰 판단 = `(pointer: coarse)` + UA(Android/iPhone/iPad/Mobile). 실제 한계는 T-13 결과를 보고 조정.
+- Playwright에 '모바일 메모리 안내' 1개 추가(deviceMemory=2 흉내). Vitest 68개, Playwright Chromium 14개 통과.
+- 버전 1.0.0 (package.json). **Git 태그 v1.0.0은 T-13 통과 후** 단다.
+- 실제 기기 점검표: `docs/T13-CHECKLIST.md`.
+
+남은 일
+1. 사용자 T-13 점검 (PC·Android·iPhone, 실제 사진 PDF로 단계 4~6 화질).
+2. 문제 있으면 수정(단계표 하한, 메모리 기준값).
+3. 통과하면: `git tag -a v1.0.0` → push, `gh release create v1.0.0`(변경 요약), README 상태표 5단계 "완료", 이 파일 갱신.
+

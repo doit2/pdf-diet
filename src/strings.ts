@@ -5,7 +5,7 @@ import type { FileProblem } from './lib/validate'
 export const t = {
   appName: 'PDF 다이어트',
   tagline: '글자는 그대로, 이미지만 줄여 PDF 용량을 낮춥니다',
-  privacy: '파일은 서버로 전송되지 않고 내 브라우저에서만 처리됩니다.',
+  privacy: '파일은 서버로 전송되지 않고 내 브라우저에서만 처리됩니다. 방문 통계(쿠키 없음)만 익명으로 집계합니다.',
   source: '소스 코드',
   license: 'AGPL-3.0',
 

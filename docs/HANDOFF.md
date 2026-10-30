@@ -237,3 +237,12 @@ playwright.config.ts        chromium 기본, E2E_ALL=1이면 firefox·webkit(T-0
 3. 기능 후보: 영어 화면(strings.ts 확장), 여러 파일 한 번에, 오프라인 사용(PWA·엔진 캐시), 결과 미리보기(전후 1쪽 비교).
 4. 정리: 기획서 원본(Claude Docs) 상태 갱신.
 
+## 12. 방문 통계 (2026-10-30, v1.1.0)
+
+- 사용자 결정: Vercel Web Analytics 켬. `@vercel/analytics`(2.0.1)의 `<Analytics>`를 `src/main.tsx`에 넣음. 주소의 ?·# 뒤는 지우고 보냄.
+- 운영에서는 같은 주소 `/_vercel/insights/script.js`·`/_vercel/insights/view`만 쓰므로 CSP(`connect-src 'self'`)는 그대로.
+- 하단 문구: "…방문 통계(쿠키 없음)만 익명으로 집계합니다."
+- T-11: `/_vercel/insights/` 요청만 허용(스크립트는 같은 주소인지 확인, 모든 요청 본문 4KB 미만).
+- Hobby 한도: 월 50,000 이벤트(계정 전체 공유), 조회 기간 1개월, 커스텀 이벤트 없음 → 압축 성공률 같은 통계는 Pro가 필요.
+- 대시보드에서 프로젝트 Analytics 켜기는 사용자가 Vercel에 로그인한 상태에서 해야 함(커넥터에 켜기 기능 없음).
+

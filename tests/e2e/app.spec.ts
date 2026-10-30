@@ -168,9 +168,12 @@ test.describe('T-11 보안', () => {
 
     const outside = requests.filter((r) => !r.url.startsWith(origin) && !r.url.startsWith('blob:') && !r.url.startsWith('data:'))
     expect(outside, '다른 주소로 간 요청').toEqual([])
-    expect(requests.filter((r) => r.method !== 'GET' || r.body > 0), 'GET 말고 보낸 요청').toEqual([])
-    // 원본 PDF(9MB)를 담을 만한 요청이 없어야 한다
-    expect(requests.every((r) => r.body === 0)).toBe(true)
+    // 방문 통계(/_vercel/insights)만 같은 주소로 작은 요청을 보낼 수 있다
+    const insights = (r: { url: string }) => r.url.startsWith(`${origin}/_vercel/insights/`)
+    expect(requests.some((r) => r.url === `${origin}/_vercel/insights/script.js`), '방문 통계 스크립트는 같은 주소').toBe(true)
+    expect(requests.filter((r) => !insights(r) && (r.method !== 'GET' || r.body > 0)), 'GET 말고 보낸 요청').toEqual([])
+    // 원본 PDF(9MB)를 담을 만한 요청이 없어야 한다 (통계 요청도 4KB 미만)
+    expect(requests.every((r) => r.body < 4096)).toBe(true)
   })
 })
 

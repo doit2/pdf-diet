@@ -65,14 +65,17 @@ describe('targetPixels', () => {
 
 describe('saveOptions', () => {
   it('기본 옵션', () => {
-    expect(saveOptions(DEFAULT_OPTIONS)).toBe('garbage=4,clean,compress,compress-fonts,compress-images')
+    expect(saveOptions(DEFAULT_OPTIONS)).toBe('garbage=4,compress,compress-fonts,compress-images')
+  })
+  it('clean은 쓰지 않는다 (Type3 글꼴 참조가 깨짐, Marp/Chrome PDF)', () => {
+    expect(saveOptions(DEFAULT_OPTIONS).split(',')).not.toContain('clean')
   })
   it('모두 끄면 빈 문자열', () => {
     const off: CompressOptions = { removeUnused: false, dedupe: false, compressStructure: false, removeMetadata: false, removeThumbnails: false }
     expect(saveOptions(off)).toBe('')
   })
   it('중복 제거 없이 미사용만', () => {
-    expect(saveOptions({ ...DEFAULT_OPTIONS, dedupe: false, compressStructure: false })).toBe('garbage=compact,clean')
+    expect(saveOptions({ ...DEFAULT_OPTIONS, dedupe: false, compressStructure: false })).toBe('garbage=compact')
   })
 })
 

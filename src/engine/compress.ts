@@ -266,27 +266,19 @@ export function saveOptions(opts: CompressOptions): string {
   // garbage=deduplicate(3)는 스트림 중복을 못 잡는다. 4여야 같은 이미지·글꼴 스트림까지 합친다.
   if (opts.dedupe) parts.push('garbage=4')
   else if (opts.removeUnused) parts.push('garbage=compact')
-  if (opts.removeUnused) parts.push('clean')
+  // `clean`(내용 스트림 다시 쓰기)은 쓰지 않는다. Chrome/Marp PDF의 Type3 글꼴처럼 서로를 참조하는
+  // 리소스가 있으면 garbage와 함께 쓸 때 글꼴 참조가 엉뚱한 객체를 가리켜 글자가 깨지고(v1.1.1),
+  // 글리프마다 리소스를 복사해 오히려 커진다. 일반 PDF에서 줄어드는 양은 수백 바이트 이하.
+  // 끝이 잘린 PDF에서 "not a dict" 오류를 내던 것(T-10)도 clean이었다.
   if (opts.compressStructure) parts.push('compress', 'compress-fonts', 'compress-images')
   return parts.join(',')
 }
 
-/**
- * 저장. 끝이 잘려 복구로 연 PDF는 `clean`(내용 스트림 다시 쓰기)에서 "not a dict" 오류가 날 수 있다(T-10, broken.pdf).
- * 그때는 clean만 빼고 다시 저장하고, 그래도 안 되면 손상 파일로 알린다.
- */
+/** 저장. 실패하면 손상 파일로 알린다 */
 function saveRepairing(doc: Doc, options: string): mupdf.Buffer {
   try {
     return doc.saveToBuffer(options)
   } catch (e) {
-    const withoutClean = options.split(',').filter((o) => o !== 'clean').join(',')
-    if (withoutClean !== options) {
-      try {
-        return doc.saveToBuffer(withoutClean)
-      } catch {
-        /* 아래에서 처리 */
-      }
-    }
     throw new EngineError('invalid-pdf', e instanceof Error ? e.message : String(e))
   }
 }

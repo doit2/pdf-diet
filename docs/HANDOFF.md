@@ -2,8 +2,8 @@
 
 새 대화는 이 파일만 먼저 읽고 시작한다. 단계가 끝날 때마다 갱신한다.
 
-- 최종 갱신: 2026-10-30 (v1.1.0 릴리스)
-- 다음 할 일: v1.1.0 릴리스 완료(방문 통계). 차기 버전 기능은 [ROADMAP.md](./ROADMAP.md) — 사용자가 고르면 시작
+- 최종 갱신: 2026-11-03 (v1.1.1 글자 깨짐 수정)
+- 다음 할 일: v1.1.1 배포 확인(14장). 차기 버전 기능은 [ROADMAP.md](./ROADMAP.md) — 사용자가 고르면 시작
 
 ---
 
@@ -128,7 +128,7 @@ playwright.config.ts        chromium 기본, E2E_ALL=1이면 firefox·webkit(T-0
    - 없으면: 페이지별 이미지 XObject를 꺼내 Pixmap으로 축소 → JPEG 인코딩 → 스트림 교체(DCTDecode). 흑백(1비트) 이미지는 JPEG로 바꾸지 않는다.
 2. `src/engine/` 구성: `compress.ts`(순수 로직), `worker.ts`(Comlink 노출), `client.ts`(UI용 래퍼, 취소 = worker.terminate()).
 3. 옵션 5종:
-   - 미사용 리소스 제거 → 저장 옵션 `garbage` + `clean`
+   - 미사용 리소스 제거 → 저장 옵션 `garbage` (`clean`은 v1.1.1에서 뺌, 14장)
    - 중복 객체 제거 → `garbage=deduplicate`
    - 문서 구조 압축 → `compress` (+ 지원 시 object streams)
    - 메타데이터 제거(기본 끔) → Info, XMP(Metadata) 삭제
@@ -253,3 +253,11 @@ playwright.config.ts        chromium 기본, E2E_ALL=1이면 firefox·webkit(T-0
 - iPhone 점검은 사용자 환경상 당장 어려움. 단계 4~6 화질 재확인도 남아 있음.
 - 태그·릴리스는 이 대화 환경의 git/API로는 만들 수 없음 → 앱 내장 브라우저(GitHub 로그인)의 Releases 화면에서 발행.
 
+
+## 14. v1.1.1 글자 깨짐 수정 (2026-11-03)
+
+- 증상: Marp(Chrome)로 만든 122쪽 한글 슬라이드 PDF를 압축하면 거의 모든 쪽의 글자가 □로 깨짐.
+- 원인: Chrome은 한글 글꼴을 Type3 글꼴로 넣고, 각 글꼴의 Resources가 다른 글꼴(자기 자신 포함)을 서로 참조한다. 저장 옵션 `clean`이 `garbage`(번호 다시 매기기)와 함께 쓰이면 글꼴 참조가 페이지·ExtGState 등 엉뚱한 객체를 가리키게 됨(MuPDF 1.28.1). `clean` 단독·`garbage` 단독은 정상.
+- 재현: Playwright Chromium + Noto Sans CJK KR로 120쪽 PDF 생성 → clean 포함 시 6쪽이 원본과 다르게 그려짐, clean 제외 시 120쪽 모두 원본과 픽셀 동일.
+- `clean`은 Type3 PDF를 오히려 키우고(297KB → 553KB), 테스트 PDF들에서 줄이는 양은 150바이트 이하 → 저장 옵션에서 제거. T-10의 "not a dict" 오류도 clean 때문이었으므로 `saveRepairing()`의 clean 빼고 재시도 코드도 정리(`checkReopens()`는 유지).
+- 회귀 테스트: `saveOptions`에 clean이 없는지 확인.

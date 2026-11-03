@@ -2,7 +2,7 @@
 
 /** 사용자가 고르는 부가 옵션 5종 */
 export interface CompressOptions {
-  /** 미사용 리소스 제거 (저장 옵션 garbage + clean) */
+  /** 미사용 리소스 제거 (저장 옵션 garbage) */
   removeUnused: boolean
   /** 중복 객체 제거 (garbage=4: 같은 스트림까지 합침) */
   dedupe: boolean

@@ -15,6 +15,7 @@
 | 4. 테스트 | 테스트 PDF 생성, 단위·엔진·화면 테스트(Playwright), CI | 완료 |
 | 5. 배포·안정화 | 운영 점검, 모바일 메모리 안내, 실제 기기 점검([T-13](./docs/T13-CHECKLIST.md)), v1.0.0 릴리스 | 완료 (iPhone·화질 재확인 남음) |
 | v1.1.0 | 방문 통계(Vercel Web Analytics, 쿠키 없음) | 완료 |
+| v1.1.1 | Marp·Chrome PDF(Type3 글꼴) 압축 후 글자 깨짐 수정 | 완료 |
 | 다음 | 영어 화면, 여러 파일, 오프라인(PWA), 전후 미리보기 — [ROADMAP](./docs/ROADMAP.md) | 예정 |
 
 ## 다음 작업자에게
